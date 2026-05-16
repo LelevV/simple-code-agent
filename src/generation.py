@@ -11,8 +11,6 @@ def call_llm(messages: list[dict], model: str = "qwen3.5:4b") -> str:
     return resp.json()["message"]["content"]
 
 
-
-
 if __name__ == "__main__":
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
