@@ -86,11 +86,21 @@ def agent_loop(user_prompt: str, max_iter=3):
 
     
 if __name__ == "__main__":
-    user_prompt = """
-    Write a Python function that returns the sum of squares of the first 110 natural numbers, 
-    and then execute it to get the result.
-    """
+    # user_prompt = """
+    # Write a Python function that returns the sum of squares of the first 110 natural numbers, 
+    # and then execute it to get the result.
+    # """
 
+    user_prompt = """
+    Debug the following code and fix the error:
+
+    ```python
+    def add_numbers(a, b):
+        return a + b
+
+    print(add_numbers(2))
+    ```
+    """
     agent_loop(user_prompt) 
     
 
