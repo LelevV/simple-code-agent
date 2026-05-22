@@ -1,39 +1,12 @@
 import json
 from src.generation import structured_response
 from src.coding import run_python_sandboxed, extract_code
+from src.ui import status, show_tool_call, show_answer
 from pydantic import BaseModel, TypeAdapter
 from typing import Literal
 
 
-# --- ANSI Colors ---
-class C:
-    BOLD = "\033[1m"
-    DIM = "\033[2m"
-    CYAN = "\033[36m"
-    GREEN = "\033[32m"
-    YELLOW = "\033[33m"
-    RED = "\033[31m"
-    MAGENTA = "\033[35m"
-    RESET = "\033[0m"
-
-
-def header(text, color=C.CYAN):
-    width = 60
-    print(f"\n{color}{C.BOLD}{'─' * width}")
-    print(f"  {text}")
-    print(f"{'─' * width}{C.RESET}")
-
-
-def label(name, value="", color=C.YELLOW):
-    print(f"  {color}{C.BOLD}{name}{C.RESET} {value}")
-
-
-def indent(text, prefix="  │ "):
-    for line in str(text).splitlines():
-        print(f"{C.DIM}{prefix}{C.RESET}{line}")
-
-
-# --- Models ---
+# ---Pydantic Models ---
 class ToolCall(BaseModel):
     type: Literal["tool_call"]
     thought: str
@@ -47,8 +20,8 @@ class FinalAnswer(BaseModel):
     answer: str
 
 
-AgentResponse = ToolCall | FinalAnswer
-adapter = TypeAdapter(AgentResponse)
+AgentResponse = ToolCall | FinalAnswer # Union type for agent response, can be either a tool call or a final answer
+adapter = TypeAdapter(AgentResponse) # Create a TypeAdapter for the union type to get JSON schema generation
 RESPONSE_SCHEMA = adapter.json_schema()
 
 LLM_MODEL = "qwen3.5:2b"
@@ -66,67 +39,29 @@ If you have the final answer:
 """
 
 
+
 def agent_loop(user_prompt: str, max_iter=3):
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages.append({"role": "user", "content": user_prompt})
 
-    header("AGENT LOOP START", C.MAGENTA)
-    label("Model:", LLM_MODEL)
-    label("Max iterations:", str(max_iter))
-    label("Prompt:")
-    indent(user_prompt.strip())
-
     for i in range(max_iter):
-        header(f"Iteration {i + 1}/{max_iter}")
+        with status(f"Thinking (step {i+1})"):
+            response = structured_response(messages, format=RESPONSE_SCHEMA, model=LLM_MODEL)
 
-        # Step 1: Get response
-        label("Calling LLM...")
-        response = structured_response(messages, format=RESPONSE_SCHEMA, model=LLM_MODEL)
+        response_dict = json.loads(response)
 
-        # Compact preview for raw response
-        preview = response[:80] + "..." if len(response) > 80 else response
-        label("Raw:", f"{C.DIM}{preview}{C.RESET}", color=C.CYAN)
-
-        # Step 2: Parse
-        try:
-            response_json = json.loads(response)
-        except json.JSONDecodeError:
-            print(f"\n  {C.RED}{C.BOLD}✗ Failed to parse JSON{C.RESET}")
-            label("Full response:")
-            try:
-                indent(json.dumps(json.loads(response), indent=2))
-            except json.JSONDecodeError:
-                indent(response)
+        if response_dict["type"] == "final_answer":
+            show_answer(response_dict["answer"])
             break
 
-        # Step 3: Show thought
-        thought = response_json.get("thought", "")
-        if thought:
-            label("Thought:", color=C.CYAN)
-            indent(thought)
+        elif response_dict["type"] == "tool_call":
+            tool_name = response_dict["action"]
+            tool_input = extract_code(response_dict["action_input"]) if tool_name == "run_python" else response_dict["action_input"]
+            show_tool_call(tool_name)
 
-        # Step 4: Route
-        if response_json["type"] == "final_answer":
-            header("FINAL ANSWER", C.GREEN)
-            indent(response_json["answer"])
-            break
-
-        elif response_json["type"] == "tool_call":
-            tool_name = response_json["action"]
-            tool_input = response_json["action_input"]
-
-            label(f"Tool: {tool_name}", color=C.YELLOW)
-            label("Code:", color=C.YELLOW)
-            indent(tool_input)
-
-            tool_func = AVAILABLE_TOOLS[tool_name]
-            tool_output = tool_func(tool_input)
-
-            label("Output:", color=C.GREEN)
-            indent(tool_output)
+            with status(f"Running {tool_name}"):
+                tool_output = AVAILABLE_TOOLS[tool_name](tool_input)
 
             messages.append({"role": "assistant", "content": response})
             messages.append({"role": "system", "content": f"Tool output: {tool_output}"})
 
-    else:
-        print(f"\n  {C.RED}{C.BOLD}⚠ Max iterations reached without final answer{C.RESET}")
