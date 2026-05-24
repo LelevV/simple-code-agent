@@ -25,3 +25,7 @@ def show_answer(text):
 
 def show_error(text):
     console.print(f"[bold red]Error:[/bold red] {text}")
+
+
+def get_user_input(text=""):
+    return console.input(f"[bold cyan]You:[/bold cyan] {text}")

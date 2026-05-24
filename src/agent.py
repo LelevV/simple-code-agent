@@ -40,19 +40,22 @@ If you have the final answer:
 
 
 
-def agent_loop(user_prompt: str, max_iter=3):
+def agent_loop(user_prompt: str, history: list = None, model: str=LLM_MODEL, max_iter=3):
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    if history:
+        messages.extend(history)
     messages.append({"role": "user", "content": user_prompt})
 
     for i in range(max_iter):
         with status(f"Thinking (step {i+1})"):
-            response = structured_response(messages, format=RESPONSE_SCHEMA, model=LLM_MODEL)
+            response = structured_response(messages, format=RESPONSE_SCHEMA, model=model)
 
         response_dict = json.loads(response)
 
         if response_dict["type"] == "final_answer":
+            messages.append({"role": "assistant", "content": response})
             show_answer(response_dict["answer"])
-            break
+            return messages  # Return full message history for potential further interactions or debugging
 
         elif response_dict["type"] == "tool_call":
             tool_name = response_dict["action"]
