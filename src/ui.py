@@ -18,6 +18,12 @@ def status(label):
 def show_tool_call(name):
     console.print(f"  [yellow]→ {name}[/yellow]")
 
+def show_tool_input(code):
+    console.print(f"Input:\n   [dim]{code}[/dim]")
+
+def show_tool_output(output):
+    console.print(f"Output:\n   [dim]{output}[/dim]")
+
 
 def show_answer(text):
     console.print(f"\n[bold green]Answer:[/bold green] {text}")
