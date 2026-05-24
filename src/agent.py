@@ -1,7 +1,7 @@
 import json
 from src.generation import structured_response
 from src.coding import run_python_sandboxed, extract_code
-from src.ui import status, show_tool_call, show_answer
+from src.ui import status, show_tool_call, show_answer, show_tool_input, show_tool_output
 from pydantic import BaseModel, TypeAdapter
 from typing import Literal
 
@@ -61,9 +61,13 @@ def agent_loop(user_prompt: str, history: list = None, model: str=LLM_MODEL, max
             tool_name = response_dict["action"]
             tool_input = extract_code(response_dict["action_input"]) if tool_name == "run_python" else response_dict["action_input"]
             show_tool_call(tool_name)
+            show_tool_input(tool_input)
+            
 
             with status(f"Running {tool_name}"):
                 tool_output = AVAILABLE_TOOLS[tool_name](tool_input)
+            
+            show_tool_output(tool_output)
 
             messages.append({"role": "assistant", "content": response})
             messages.append({"role": "system", "content": f"Tool output: {tool_output}"})
