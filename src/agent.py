@@ -1,6 +1,7 @@
 import json
 from src.generation import structured_response
 from src.coding import run_python_sandboxed, extract_code
+from src.io import read_file, list_files
 from src.ui import status, show_tool_call, show_answer, show_tool_input, show_tool_output
 from pydantic import BaseModel, TypeAdapter
 from typing import Literal
@@ -10,7 +11,7 @@ from typing import Literal
 class ToolCall(BaseModel):
     type: Literal["tool_call"]
     thought: str
-    action: Literal["run_python"]
+    action: Literal["read_file", "list_files", "run_python"]
     action_input: str
 
 
@@ -25,23 +26,29 @@ adapter = TypeAdapter(AgentResponse) # Create a TypeAdapter for the union type t
 RESPONSE_SCHEMA = adapter.json_schema()
 
 LLM_MODEL = "qwen3.5:2b"
-AVAILABLE_TOOLS = {"run_python": run_python_sandboxed}
+AVAILABLE_TOOLS = {
+    "run_python": run_python_sandboxed,
+    "read_file": read_file,
+    "list_files": list_files,
+}
 
 SYSTEM_PROMPT = """
 You are an AI agent that runs in a execution loop. You must think step-by-step and decide whether to use a tool or provide your final answer.
+Your project directory is: {project_dir}  # The agent can read any file in this directory using the read_file tool, but cannot access files outside of it.
 You have access to the following tools: 
 - run_python(code: str) -> str: 
+- read_file(path: str) -> str: 
+- list_files(project_dir: str) -> list[str]:
 CRITICAL: You MUST reply in EXACTLY one of the following two JSON formats. Do not include any other text, markdown blocks, or commentary.
 If you need to run code:
-{"type": "tool_call", "thought": "...", "action": "run_python", "action_input": "<code>"}
+{"type": "tool_call", "thought": "...", "action": "list_files", "action_input": "<project_dir>"}
 If you have the final answer:
 {"type": "final_answer", "thought": "...", "answer": "..."}
 """
 
 
-
-def agent_loop(user_prompt: str, history: list = None, model: str=LLM_MODEL, max_iter=3):
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+def agent_loop(user_prompt: str, project_dir: str, history: list = None, model: str=LLM_MODEL, max_iter=3):
+    messages = [{"role": "system", "content": SYSTEM_PROMPT.replace("{project_dir}", project_dir)}]
     if history:
         messages.extend(history)
     messages.append({"role": "user", "content": user_prompt})
@@ -65,9 +72,11 @@ def agent_loop(user_prompt: str, history: list = None, model: str=LLM_MODEL, max
             
 
             with status(f"Running {tool_name}"):
-                tool_output = AVAILABLE_TOOLS[tool_name](tool_input)
-            
-            show_tool_output(tool_output)
+                try:
+                    tool_output = AVAILABLE_TOOLS[tool_name](tool_input)
+                except Exception as e:
+                    tool_output = f"Error running tool: {str(e)}"
+                show_tool_output(tool_output)
 
             messages.append({"role": "assistant", "content": response})
             messages.append({"role": "system", "content": f"Tool output: {tool_output}"})
