@@ -2,7 +2,7 @@ from src.agent import agent_loop
 from src.ui import get_user_input
 
 
-LLM_MODEL = "qwen2.5-coder:1.5b"
+LLM_MODEL = "qwen2.5-coder:7b"
 
 PROJECT_DIR = "./project"
 

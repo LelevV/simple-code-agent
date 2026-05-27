@@ -31,6 +31,10 @@ def show_answer(text):
     console.print(f"\n[bold green]Answer:[/bold green] {text}")
 
 
+def show_thought(thought):
+    console.print(f"\n[italic blue]Thought:[/italic blue] {thought}")
+
+
 def show_error(text):
     console.print(f"[bold red]Error:[/bold red] {text}")
 
