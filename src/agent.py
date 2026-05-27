@@ -35,7 +35,7 @@ SYSTEM_PROMPT = """
 You are an AI agent that runs in a execution loop. You must think step-by-step and decide whether to use a tool or provide your final answer.
 
 Your project directory is: {project_dir}  # The agent can read any file in this directory using the read_file tool, but cannot access files outside of it.
-
+IMPORTANT: if you write a file, make sure to write it to the project directory or a subdirectory of {project_dir}.
 You have access to the following tools:
 - write_file(path: str, content: str) -> None:
 - run_python_sandboxed(code: str) -> str:
@@ -52,10 +52,13 @@ If you have the final answer:
 """
 
 def agent_loop(user_prompt: str, project_dir: str, history: list = None, model: str = LLM_MODEL, max_iter=3):
-    messages = [{"role": "system", "content": SYSTEM_PROMPT.replace("{project_dir}", project_dir)}]
+    system_msg = {"role": "system", "content": SYSTEM_PROMPT.replace("{project_dir}", project_dir)}
 
     if history:
-        messages.extend(history)
+        # History already contains the system prompt from the first call
+        messages = history
+    else:
+        messages = [system_msg]
 
     messages.append({"role": "user", "content": user_prompt})
 
@@ -89,4 +92,4 @@ def agent_loop(user_prompt: str, project_dir: str, history: list = None, model: 
 
             show_tool_output(tool_output)
             messages.append({"role": "assistant", "content": response})
-            messages.append({"role": "system", "content": f"Tool output: {tool_output}"})
+            messages.append({"role": "user", "content": f"Tool '{tool_name}' returned:\n{tool_output}"})
