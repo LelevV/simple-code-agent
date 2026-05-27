@@ -17,3 +17,4 @@ def list_files(project_dir):
 def write_file(path, content):
     with open(path, 'w') as f:
         f.write(content)
+    return f"Wrote to {path}"
