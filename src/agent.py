@@ -6,7 +6,7 @@ from src.ui import status, show_tool_call, show_answer, show_tool_input, show_to
 from pydantic import BaseModel, TypeAdapter
 from typing import Literal
 
-# ---Pydantic Models ---
+# ---Pydantic Models for Agent Responses ---
 class ToolCall(BaseModel):
     type: Literal["tool_call"]
     thought: str
@@ -18,8 +18,9 @@ class FinalAnswer(BaseModel):
     thought: str
     answer: str
 
+# Define a union type for the agent response, which can be either a tool call or a final answer
 AgentResponse = ToolCall | FinalAnswer
-adapter = TypeAdapter(AgentResponse)
+adapter = TypeAdapter(AgentResponse) 
 RESPONSE_SCHEMA = adapter.json_schema()
 
 LLM_MODEL = "qwen3.5:2b"
